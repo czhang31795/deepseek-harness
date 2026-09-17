@@ -1,0 +1,156 @@
+{
+  "version": "1.0",
+  "status": "draft",
+  "baseUrl": "{TDS_BASE_URL}{TDS_API_PREFIX}",
+  "defaults": {
+    "TDS_BASE_URL": "http://172.16.28.79",
+    "TDS_API_PREFIX": "/tds/serve"
+  },
+  "envelope": {
+    "success": { "code": 200, "msg": "string", "data": "object" },
+    "note": "HTTP 状态也可能是 400/500，业务是否成功看 body.code。page_token 是 offset，不是游标。"
+  },
+  "headers": ["Content-Type: application/json", "union_id", "x-union-id"],
+  "bodyAlways": ["mode"],
+  "notExposedToAgent": [
+    "light_source_comparison_upsert",
+    "save_vendor_guide",
+    "update_light_source_config",
+    "add/update/delete_light_source_recommend",
+    "lightSourceSupplier CRUD"
+  ],
+  "itemFieldMap": {
+    "_note": "列表行不再写死 camelCase。以 TDS get_light_source_list.data.field 为准，行 key 与 field 字典一致。",
+    "itemId": "ITEMID",
+    "image": "IMAGE",
+    "seriesName": "SERIESNAME",
+    "productModel": "PRODUCTMODEL",
+    "recommendLevel": "recommend_level",
+    "supplier": "SUPPLIER",
+    "isMassProduct": "ISMASSPRODUCT",
+    "chipNum": "CHIPNUM",
+    "singleMultiColor": "SINGLEMULTICOLOR",
+    "lightColor": "PRODUCTLIGHTCOLOR",
+    "specification": "SPECIFICATION",
+    "applicationExample": "APPPROJECTEXAMPLE",
+    "forwardCurrentMa": "IFMATJ25",
+    "forwardVoltageV": "VFVTJ25",
+    "fluxMaxLm": "LMTJ25CMAX",
+    "fluxMinLm": "LMTJ25CMIN",
+    "fluxTypicalLm": "LMTJ25CCOMMONLY",
+    "consumePowerW": "POWERTJ25",
+    "productPowerW": "PRODUCTPOWER",
+    "luminousAngle": "LUMINOUSANGLE",
+    "lengthMm": "LENGTH",
+    "widthMm": "WIDTH",
+    "heightMm": "HEIGHT",
+    "ratedCurrentMinMa": "RATEDCURRENTMIN",
+    "ratedCurrentMaxMa": "RATEDCURRENTMAX",
+    "maxTjC": "MAXTJ",
+    "thermalRthJs": "THERMALRRTHJS",
+    "electricalRthJs": "ELECTRICALRRTHJS",
+    "esdHbmKv": "ESDHBMMODEKV",
+    "esdCdmKv": "ESDCDMMODEKV",
+    "esdMmKv": "ESDMMMODEKV",
+    "allColorBin": "ALLCOLORBIN",
+    "allLightBin": "ALLLIGHTBIN",
+    "mainColorBin": "MAINCOLORBIN",
+    "mainLightBin": "MAINLIGHTBIN",
+    "allVoltageBin": "ALLVOLTAGE",
+    "lightDecay": "LIGHTDECAYRY70W100",
+    "ledBrand": "xy2_LEDBrand",
+    "pinToPin": "xy2_PinToPin",
+    "materialCode": "material_code",
+    "luminousMode": "LuminousMode",
+    "luminousDefect": "LuminousDefect",
+    "luminousArea": "LuminousArea",
+    "costFactor": "show_price (= price_factor / 10000)",
+    "isP2pSibling": "is_p2p",
+    "p2pMatch": "p2p (1|2)"
+  },
+  "sortFieldMap": {
+    "seriesName": "SERIESNAME",
+    "productModel": "PRODUCTMODEL",
+    "recommendLevel": "recommend_level",
+    "costFactor": "price_factor",
+    "forwardCurrentMa": "IFMATJ25",
+    "productPowerW": "PRODUCTPOWER",
+    "lightColor": "PRODUCTLIGHTCOLOR",
+    "lengthMm": "LENGTH",
+    "widthMm": "WIDTH",
+    "heightMm": "HEIGHT",
+    "luminousMode": "LuminousMode",
+    "ledBrand": "xy2_LEDBrand",
+    "supplier": "SUPPLIER",
+    "consumePowerW": "POWERTJ25",
+    "luminousAngle": "LUMINOUSANGLE",
+    "fluxTypicalLm": "LMTJ25CCOMMONLY"
+  },
+  "filterFieldMap": {
+    "colors": ["PRODUCTLIGHTCOLOR", "in"],
+    "suppliers": ["SUPPLIER", "in"],
+    "massProduction": ["ISMASSPRODUCT", "in"],
+    "luminousAngles": ["LUMINOUSANGLE", "in"],
+    "models": ["PRODUCTMODEL", "in"],
+    "consumePowerW": ["POWERTJ25", "between"],
+    "productPowerW": ["PRODUCTPOWER", "between"],
+    "fluxMaxLm": ["LMTJ25CMAX", "between"],
+    "fluxMinLm": ["LMTJ25CMIN", "between"],
+    "fluxTypicalLm": ["LMTJ25CCOMMONLY", "between"],
+    "lengthMm": ["LENGTH", "between"],
+    "widthMm": ["WIDTH", "between"],
+    "heightMm": ["HEIGHT", "between"],
+    "maxTjC": ["MAXTJ", "between"]
+  },
+  "tools": {
+    "get_light_source_filters": {
+      "calls": [
+        { "path": "/lightSource", "mode": "get_basic_filter_info" },
+        { "path": "/lightSource", "mode": "get_apply_filter_info" },
+        { "path": "/lightSource", "mode": "get_host_filter_info" },
+        { "path": "/lightSource", "mode": "get_vendor_guide" }
+      ]
+    },
+    "search_light_sources": {
+      "calls": [
+        { "path": "/lightSource", "mode": "get_light_source_list" }
+      ],
+      "optionalCalls": [
+        {
+          "when": "recommendHost 有值",
+          "path": "/lightSourceRecommend",
+          "mode": "get_host_recommend_info"
+        }
+      ],
+      "pagination": "page_size=pageSize; page_token=(page-1)*pageSize",
+      "keyword": "target",
+      "includeP2pSiblings": "p2p: boolean",
+      "recommendLogic": [
+        "取 get_host_recommend_info 中匹配的主机厂",
+        "按 lampType(hl/sl，默认都要) 与 market(out/in，默认都要) 收集 brands 与 extraModels",
+        "若同时有 brands 和 extraModels：filters 增加 [\"__or_group\",\"or\",[[\"SUPPLIER\",\"in\",brands],[\"PRODUCTMODEL\",\"in\",models]]]",
+        "只有 brands： [\"SUPPLIER\",\"in\",brands]",
+        "只有 extraModels： [\"PRODUCTMODEL\",\"in\",models]",
+        "都没有： [\"PRODUCTMODEL\",\"in\",[]] （保证空结果而不是全表）",
+        "用户同时传了 suppliers 时，brands 与 suppliers 取交集，extraModels 只保留这些品牌"
+      ]
+    },
+    "get_light_source_p2p": {
+      "calls": [{ "path": "/lightSource", "mode": "get_light_source_p2p_list" }],
+      "body": { "p2p": "pinToPin", "PRODUCTLIGHTCOLOR": "lightColor?" }
+    },
+    "get_light_source_application_cases": {
+      "calls": [{ "path": "/lightSource", "mode": "get_application_case_by_code" }],
+      "body": { "target": "model" }
+    },
+    "get_host_recommend_info": {
+      "calls": [{ "path": "/lightSourceRecommend", "mode": "get_host_recommend_info" }],
+      "fallback": {
+        "path": "/lightSourceRecommend",
+        "mode": "get_light_source_recommend_list",
+        "when": "解析接口失败或 list 为空",
+        "note": "原始品牌字段是 JSON/逗号字符串，Adapter 必须自己 parse。TDS types 是 {品牌:[型号]}，输出 extraModels 应为 [{brand, models}]，不要把原始串给模型"
+      }
+    }
+  }
+}

@@ -97,9 +97,11 @@ function useNativeDragAcceptance(active: boolean): void {
 }
 
 /** Grouping and ordering menu; own open state so it resets with the wide chrome. */
-function ViewOptionsMenu({ groupBy, orderBy, onGroupPick, onOrderPick, t }: {
+function ViewOptionsMenu({ groupBy, orderBy, grouping = true, onGroupPick, onOrderPick, t }: {
   groupBy: 'workspace' | 'flat'
   orderBy: SessionOrderBy
+  /** False while the directory-flow hole is empty: Sessions cannot be grouped by folder. */
+  grouping?: boolean
   onGroupPick: (mode: 'workspace' | 'flat') => void
   onOrderPick: (mode: SessionOrderBy) => void
   t: WorkspaceBrowserProps['t']
@@ -110,15 +112,19 @@ function ViewOptionsMenu({ groupBy, orderBy, onGroupPick, onOrderPick, t }: {
       open={open}
       onClose={() => { setOpen(false) }}
       items={[
-        { type: 'label' as const, id: 'group-by', text: t('groupBy.label') },
-        { id: 'workspace', label: t('groupBy.workspace') },
-        { id: 'flat', label: t('groupBy.flat') },
-        { type: 'separator' as const, id: 'order-by-separator' },
+        ...grouping
+          ? [
+            { type: 'label' as const, id: 'group-by', text: t('groupBy.label') },
+            { id: 'workspace', label: t('groupBy.workspace') },
+            { id: 'flat', label: t('groupBy.flat') },
+            { type: 'separator' as const, id: 'order-by-separator' },
+          ]
+          : [],
         { type: 'label' as const, id: 'order-by', text: t('orderBy.label') },
         { id: 'manual', label: t('orderBy.manual') },
         { id: 'updated', label: t('orderBy.updated') },
       ]}
-      selectedIds={[groupBy, orderBy]}
+      selectedIds={grouping ? [groupBy, orderBy] : [orderBy]}
       onSelect={(id) => {
         if (id === 'workspace' || id === 'flat') onGroupPick(id)
         else if (id === 'manual' || id === 'updated') onOrderPick(id)
@@ -726,9 +732,11 @@ export function WorkspaceBrowser({
   const workspaceStreamState = useWorkspaces(state => state.state)
   const archivedSessionIds = useWorkspaces(state => state.archivedSessionIds)
   // Live occupancy of this surface's directory-flow hole (the same source the
-  // flow reads): a composition without a picking affordance can add nothing.
+  // flow reads): a composition without a picking affordance can add nothing,
+  // so the list is Sessions only. Persisted grouping is not rewritten.
   const directoryFlowAvailable = useDirectoryFlow(occupied => occupied)
-  const groupBy = useStore(s => s.groupBy)
+  const storedGroupBy = useStore(s => s.groupBy)
+  const groupBy = directoryFlowAvailable ? storedGroupBy : 'flat'
   const orderBy = useStore(s => s.orderBy)
   const groupExpansion = useStore(s => s.groupExpansion)
   const sessionOrderByAccount = useStore(s => s.sessionOrderByAccount)
@@ -1109,6 +1117,7 @@ export function WorkspaceBrowser({
             <ViewOptionsMenu
               groupBy={groupBy}
               orderBy={orderBy}
+              grouping={directoryFlowAvailable}
               onGroupPick={(mode) => { actions.setGroupBy(mode) }}
               onOrderPick={(mode) => { actions.setOrderBy(mode, activeSessionOrders) }}
               t={t}

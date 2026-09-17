@@ -194,7 +194,7 @@ function bench(over?: BenchOptions) {
       const attachment = over?.attachments?.find(candidate => candidate.id === id)
       return attachment === undefined ? [] : [attachment]
     }),
-    toggleCommandMenu: over?.toggleCommandMenu ?? vi.fn(),
+    toggleCommandMenu: over !== undefined && 'toggleCommandMenu' in over ? over.toggleCommandMenu : vi.fn(),
     useBusyEnter: bindSnapshotSelector(busyEnter),
     useNotices: bindSnapshotSelector(shell.notices),
     useLexicon: bindSnapshotSelector(shell.lexicon),
@@ -1570,6 +1570,11 @@ describe('strips and variants', () => {
 })
 
 describe('command launcher chrome and control seats', () => {
+  it('omits the command launcher when no command menu is composed', () => {
+    const { view } = bench({ toggleCommandMenu: undefined })
+    expect(view.queryByLabelText('添加文件或调用指令')).toBeNull()
+  })
+
   it('renders the command launcher and dispatches every empty control seat', () => {
     const { view, slotCalls } = bench()
     expect(view.getByLabelText('添加文件或调用指令')).toBeTruthy()

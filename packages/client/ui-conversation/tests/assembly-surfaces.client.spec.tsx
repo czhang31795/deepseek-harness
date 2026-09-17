@@ -106,27 +106,25 @@ describe('resident composer', () => {
     const view = runtime.renderRoot()
     const textarea = view.container.querySelector<HTMLDivElement>('[data-composer-input]')
     expect(textarea).not.toBeNull()
-    expect(textarea!.getAttribute('aria-disabled')).not.toBe('true')
     expect(textarea!.getAttribute('contenteditable')).not.toBe('true')
-    expect(textarea!.getAttribute('aria-haspopup')).toBe('menu')
-    expect(view.getByTestId('workspace-probe').textContent).toBe('false:0')
+    expect(textarea!.getAttribute('aria-haspopup')).not.toBe('menu')
+    expect(textarea!.getAttribute('data-placeholder')).toBe('正在准备会话…')
+    expect(view.queryByRole('button', { name: '选择工作区' })).toBeNull()
+    expect(view.queryByTestId('workspace-probe')).toBeNull()
     fireEvent.click(textarea!)
-    expect(view.getByTestId('workspace-probe').textContent).toBe('true:0')
-    expect(textarea!.getAttribute('aria-expanded')).toBe('true')
-    fireEvent.click(view.getByRole('button', { name: '选择工作区' }))
     fireEvent.keyDown(textarea!, { key: 'Enter' })
-    expect(view.getByTestId('workspace-probe').textContent).toBe('true:0')
-    expect(view.getByRole('button', { name: '选择工作区' })).toBeTruthy()
+    expect(view.queryByRole('button', { name: '选择工作区' })).toBeNull()
     await runtime.dispose()
   })
 
-  it('keeps the complete Hero tree mounted when the first Workspace session appears', async () => {
+  it('keeps the composer DOM when the first Workspace session appears and hides the chip without a directory-flow occupant', async () => {
     const runtime = await SlotTestRuntime.create()
+    const openWorkspace = vi.fn(async (_workspaceId: WorkspaceId, beforeOpen: (id: SessionId) => void) => {
+      beforeOpen(SID)
+      runtime.sessions.open(SID)
+    })
     runtime.ctx.provide('uiWorkspace', {
-      openWorkspace: vi.fn(async (_workspaceId: WorkspaceId, beforeOpen: (id: SessionId) => void) => {
-        beforeOpen(SID)
-        runtime.sessions.open(SID)
-      }),
+      openWorkspace,
       openSession: (id: SessionId) => { runtime.sessions.open(id) },
     } as never)
     runtime.ctx.provide('settingsScope', { bind: () => stubSettingsScope().scope } as never)
@@ -145,14 +143,12 @@ describe('resident composer', () => {
     const scrollBody = view.container.querySelector('[data-conversation-scroll]')!
     const composerSeat = view.container.querySelector('[data-composer-seat]')!
     const textarea = view.container.querySelector<HTMLDivElement>('[data-composer-input]')!
-    const workspaceChip = view.getByRole('button', { name: '选择工作区' })
-    const workspaceProbe = view.getByTestId('workspace-probe')
-    expect(textarea.getAttribute('aria-disabled')).not.toBe('true')
+    expect(view.queryByRole('button', { name: '选择工作区' })).toBeNull()
+    expect(view.queryByTestId('workspace-probe')).toBeNull()
+    await waitFor(() => {
+      expect(openWorkspace).toHaveBeenCalled()
+    })
     expect(textarea.getAttribute('contenteditable')).not.toBe('true')
-
-    fireEvent.click(workspaceChip)
-    fireEvent.click(workspaceProbe)
-    expect(workspaceProbe.textContent).toBe('true:1')
 
     await runtime.sessions.add({
       id: SID,
@@ -164,9 +160,8 @@ describe('resident composer', () => {
     expect(view.container.querySelector('[data-conversation-scroll]')).toBe(scrollBody)
     expect(view.container.querySelector('[data-composer-seat]')).toBe(composerSeat)
     expect(view.container.querySelector<HTMLDivElement>('[data-composer-input]')).toBe(textarea)
-    expect(view.getByRole('button', { name: '选择工作区' })).toBe(workspaceChip)
-    expect(view.getByTestId('workspace-probe')).toBe(workspaceProbe)
-    expect(workspaceProbe.textContent).toBe('true:1')
+    expect(view.queryByRole('button', { name: '选择工作区' })).toBeNull()
+    expect(view.queryByTestId('workspace-probe')).toBeNull()
     expect(textarea.getAttribute('aria-disabled')).not.toBe('true')
     expect(textarea.getAttribute('contenteditable')).toBe('true')
     await runtime.dispose()

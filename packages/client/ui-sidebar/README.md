@@ -25,7 +25,7 @@ The dsh web client sidebar lets users recognize the active build, start a new se
 <a id="use-this-package"></a>
 ## Use this package
 
-The sidebar is the navigation shell: users see the brand, start new sessions, collapse the rail, and reach Settings. Feature plugins fill its seats — ui-workspace fills `sidebar.workspaces`, ui-settings registers the trigger row and settings panel at `sidebar.settings`.
+The sidebar is the navigation shell: users see the brand, start new sessions, collapse the rail, and reach Settings. Feature plugins fill its seats — ui-workspace fills `sidebar.workspaces`, ui-settings-general occupies `sidebar.settings`. An unoccupied settings seat paints no foot control.
 
 ### Brand and New Session
 
@@ -67,7 +67,8 @@ Declaration-aware `slots.inject()` lets a replacing package activate before or a
 These pages cover the surfaces that fill the shell's seats and the composition model.
 
 - [ui-workspace](../ui-workspace/README.md) — the Workspace and Session browser rendered into `sidebar.workspaces`.
-- [ui-settings](../ui-settings/README.md) — the settings domain base registering the trigger row at `sidebar.settings`.
+- [ui-settings-general](../ui-settings-general/README.md) — occupies `sidebar.settings`.
+- [ui-settings](../ui-settings/README.md) — the settings domain base.
 - [ui-layout](../ui-layout/README.md) — the layout owner whose rail and column state the collapse uses.
 - [ui-theme](../ui-theme/README.md) — the scrollbar token indirection the shell rebinds.
 - [Slot system standard](../../../.agents/notes/implemented/architecture/2026-07-22-slot-type-chain-implementation.md) — the composition model behind the seats.

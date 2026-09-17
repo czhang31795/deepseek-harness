@@ -263,7 +263,16 @@ export interface ConversationInjected {
   /** Connect and open a blank Session in the selected Workspace. */
   selectWorkspace: (workspaceId: WorkspaceId) => Promise<void>
   /** Session-addressed composer block source, or the stable absent source. */
-  hooks: { composerBlock: ObservableSnapshot<ComposerBlock | undefined> }
+  hooks: {
+    composerBlock: ObservableSnapshot<ComposerBlock | undefined>
+    /**
+     * Whether the hero workspace menu can add a directory. False while the
+     * directory-flow hole is empty; Conversation then omits the hero workspace
+     * row, does not treat the composer as a workspace picker, and attaches an
+     * existing Workspace so the composer can accept input.
+     */
+    canAddWorkspace: ObservableSnapshot<boolean>
+  }
 }
 
 /** Business callbacks injected into the strict Session body. */

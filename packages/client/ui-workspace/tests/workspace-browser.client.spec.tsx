@@ -1262,7 +1262,30 @@ describe('WorkspaceBrowser', () => {
     })
     // Nothing to add with, so the header offers no dead button.
     expect(screen.queryByRole('button', { name: '添加工作区' })).toBeNull()
-    expect(screen.getByText('alpha')).toBeTruthy()
+    expect(screen.getByText('会话')).toBeTruthy()
+    expect(screen.queryByText('alpha')).toBeNull()
+  })
+
+  it('forces the flat session list when no directory-flow occupant is composed', () => {
+    const sessions = sessionState([summary('alpha-s', 2), summary('beta-s', 1)])
+    const b = mount({
+      useSessions: hook(sessions),
+      useWorkspaces: hook(workspaceState([workspace('alpha', ['alpha-s']), workspace('beta', ['beta-s'])])),
+      useDirectoryFlow: bindSnapshotSelector({ getSnapshot: () => false, subscribe: () => () => {} }),
+    })
+    expect(screen.getByText('会话')).toBeTruthy()
+    expect(screen.queryByText('工作区')).toBeNull()
+    expect(screen.queryByText('alpha')).toBeNull()
+    expect(screen.getByText('alpha-s')).toBeTruthy()
+    expect(screen.getByText('beta-s')).toBeTruthy()
+    // Occupancy forces the list without rewriting the persisted grouping.
+    expect(b.store.getSnapshot().groupBy).toBe('workspace')
+    fireEvent.click(screen.getByRole('button', { name: '视图选项' }))
+    expect(screen.queryByText('分组方式')).toBeNull()
+    expect(screen.queryByRole('menuitem', { name: '按工作区' })).toBeNull()
+    expect(screen.getAllByRole('menuitem').map(item => item.textContent)).toEqual([
+      '手动排序', '最近更新',
+    ])
   })
 
   it('uses the full expanded Workspace section when resolving a Workspace drop half', () => {

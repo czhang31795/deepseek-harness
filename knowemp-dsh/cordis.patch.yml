@@ -1,0 +1,111 @@
+# Load the KnowEmp Q&A preset into the web profile and hide coding-agent chrome.
+# Launch from the deepseek-harness repo root:
+#   pnpm dsh web --patch ./knowemp-dsh/cordis.patch.yml
+#
+# Chrome rows stay off unless DEV_CHROME=1 in the loaded `.env` (not `.env.dev`).
+# `disabled` on a dsh.client row drops it from window.__DSH_BOOT__.
+# Do not disable ui-sidebar-right: ui-chat injects `sidebarRight` and will not mount without it.
+# Do not disable ui-commands unless you also disable every plugin that injects `commandUi`
+# (ui-model-selection, ui-permission).
+
+- id: agent-presets
+  config:
+    default: knowemp
+    includeShippedRoot: !!js process.env.DEV_CHROME === '1'
+    includeUserRoot: !!js process.env.DEV_CHROME === '1'
+    roots:
+      - path: !!js process.env.KNOWEMP_DSH_PRESETS || process.getBuiltinModule('node:path').join(process.cwd(), 'knowemp-dsh/presets')
+        trust: system
+
+- insert:
+    - id: knowemp-workspace
+      name: './ensure-workspace.ts'
+
+# ── roster / IDE chrome the Q&A users should not see ────────────────────────
+
+- id: ui-agent-preset
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-sidebar-files
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-sidebar-terminal
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-input-trigger
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-commands
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-skill
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-reference
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-model-selection
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-permission
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-plan
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-goal
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-jobs
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-subagent
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-cordis
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-workflow-run
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-deliverables
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-trajectory
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-open-in-app
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: open-in-app
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-settings-plugins
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-settings-plugin-inventory
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: session-log-download
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: subagent-model-selection-settings
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+# Host directory picker also mounts the client Add-workspace controls.
+- id: directory-picker
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+# Last non-guide right-sidebar tab type; files and terminal are already off.
+- id: ui-sidebar-documentpreview
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+# Settings trigger occupies sidebar.settings. Keep ui-settings (the domain).
+- id: ui-settings-general
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-settings-models
+  disabled: !!js process.env.DEV_CHROME !== '1'
+
+- id: ui-settings-unarchive-sessions
+  disabled: !!js process.env.DEV_CHROME !== '1'

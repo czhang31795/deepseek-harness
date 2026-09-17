@@ -1,0 +1,22 @@
+# KnowEmp 问答 preset：15 个只读业务工具在本 overlay 的 adapter 里，不启动 KnowEmp Nest。
+# 不挂 bash / 写文件 / plan / PTC / subagent。
+
+- id: persona
+  name: '@deepseek-ai/dsh-persona'
+  config:
+    complete: true
+    includeRuntimeContext: false
+    prefix: !!js process.getBuiltinModule('node:fs').readFileSync(process.getBuiltinModule('node:url').fileURLToPath(new URL('persona.txt', baseUrl)), 'utf8')
+
+- id: knowemp-tools
+  name: './plugin.ts'
+
+- id: skill-filesystem
+  name: '@deepseek-ai/dsh-skill-filesystem'
+  config:
+    includeDefaultRoots: false
+    customSkillDirs:
+      - !!js "process.getBuiltinModule('node:url').fileURLToPath(new URL('skills/', baseUrl))"
+
+- id: tool-skill
+  name: '@deepseek-ai/dsh-tool-skill'

@@ -218,7 +218,9 @@ class UiWorkspaceService extends Service implements UiWorkspace {
       }
       const target = recentWorkspace(workspace.items, sessions.byId)
       if (target === undefined) {
-        initial = 'done'
+        // Both lists can be ready before any Workspace exists (a cwd plugin
+        // still creating, or a first-run roster). Stay waiting so the first
+        // item still receives the initial connect.
         return
       }
       initial = 'connecting'

@@ -1,6 +1,6 @@
 /**
  * The way into a hidden panel: one button in the conversation header's corner
- * seat, shown only while the panel is collapsed.
+ * seat, shown only while the panel is collapsed and a non-guide tab type exists.
  *
  * It lives in the conversation's own header rather than in the frame's right
  * column so that a collapsed Sidebar costs the conversation nothing — no rail,
@@ -15,23 +15,35 @@
  */
 import type { ReactNode } from 'react'
 import { IconPanelLeftOutline16, Tooltip } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
+import type { HostObservable, InjectFace, PropsLocale, PropsRuntime, PropsStore } from '@deepseek-ai/dsh-client-ui-slots'
 import type {} from '@deepseek-ai/dsh-client-ui-conversation/client'
+import { GUIDE_KIND } from '../contract/seed.ts'
+import type { SidebarRightTabDefinition } from '../tab-registry.ts'
 import type { createSidebarRightStore } from '../stores.ts'
 import css from './ExpandButton.module.css'
 
-/** The button's props: the header corner seat, the shared store, and copy. */
+/** The button's props: the header corner seat, the shared store, tab types, and copy. */
 export type ExpandButtonProps =
   & PropsRuntime<'conversation.session.header.corner'>
   & PropsStore<ReturnType<typeof createSidebarRightStore>>
   & PropsLocale<'sidebarRight'>
+  & InjectFace<ExpandButtonInjected>
+
+/** Tab-type roster the expand control reads to decide whether a panel would have pages. */
+export interface ExpandButtonInjected {
+  hooks: {
+    /** Live tab-type registry; the control hides when only the guide remains. */
+    tabTypes: HostObservable<readonly SidebarRightTabDefinition[]>
+  }
+}
 
 /** The expand control while the panel is collapsed; nothing while it is shown. */
-export function ExpandButton({ sessionId, useStore, actions, t }: ExpandButtonProps): ReactNode {
+export function ExpandButton({ sessionId, useStore, actions, t, useTabTypes }: ExpandButtonProps): ReactNode {
   // A session with no surface yet is collapsed: the panel seat materializes the
   // surface on its own mount, and until then there is nothing expanded.
+  const hasPageTabs = useTabTypes(entries => entries.some(entry => entry.kind !== GUIDE_KIND))
   const expanded = useStore(state => state.bySession[sessionId]?.layout.expanded ?? false)
-  if (expanded) return null
+  if (!hasPageTabs || expanded) return null
   return (
     <Tooltip label={t('chrome.expand')} side="bottom" delayMs={500}>
       <button

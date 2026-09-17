@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import clsx from 'clsx'
-import type { SessionSnapshot } from '@deepseek-ai/dsh-api-session-controller/client'
+import type { SessionId } from '@deepseek-ai/dsh-session/types'
+import type { SessionListState, SessionSnapshot } from '@deepseek-ai/dsh-api-session-controller/client'
 import type { WorkspaceId } from '@deepseek-ai/dsh-workspace/types'
 import type { ConversationSlotProps, InputZone } from '../contract/slots.ts'
 import { HeroShell, WorkspaceChip, workspaceLabel } from './EmptyHero.tsx'
@@ -101,6 +102,32 @@ function WidthHandle(props: {
   )
 }
 
+/** Latest Session activity, then creation time; Host order is the tie-break. */
+function preferredWorkspaceId(
+  items: readonly {
+    readonly workspaceId: WorkspaceId
+    readonly sessionIds: readonly SessionId[]
+    readonly createdAt: string
+  }[],
+  sessions: SessionListState['byId'],
+): WorkspaceId | undefined {
+  let selected: WorkspaceId | undefined
+  let selectedTime = Number.NEGATIVE_INFINITY
+  for (const workspace of items) {
+    let latest = Number.NEGATIVE_INFINITY
+    for (const id of workspace.sessionIds) {
+      const member = sessions[id]
+      if (member !== undefined) latest = Math.max(latest, member.updatedAt)
+    }
+    if (latest === Number.NEGATIVE_INFINITY) latest = Date.parse(workspace.createdAt)
+    if (selected === undefined || latest > selectedTime) {
+      selected = workspace.workspaceId
+      selectedTime = latest
+    }
+  }
+  return selected
+}
+
 /**
  * Render the existing Conversation body, Composer, and width handles.
  * @param props - original Conversation seats plus MainPanel-derived phase and width callbacks.
@@ -108,14 +135,17 @@ function WidthHandle(props: {
  */
 export function ConversationContent({
   sessionId, session, phase, hero, useSessions, useSessionPendingInteraction,
-  useWorkspaces, useInput, useComposerBlock, renderSlot, renderSlotChain,
+  useWorkspaces, useInput, useComposerBlock, useCanAddWorkspace, renderSlot, renderSlotChain,
   selectWorkspace, t, onHandleStart, onHandleDrag, onHandleCommit, onHandleEnd,
 }: ConversationContentProps) {
   const pendingInteraction = useSessionPendingInteraction(snapshot =>
     sessionId === undefined ? undefined : snapshot.get(sessionId))
   const inputState = useInput(s => s)
   const cwd = useSessions(s => sessionId === undefined ? undefined : s.byId[sessionId]?.cwd)
+  const sessionById = useSessions(s => s.byId)
   const workspaces = useWorkspaces(s => s)
+  const canAddWorkspace = useCanAddWorkspace(value => value)
+  const connectingWorkspace = useRef<WorkspaceId | undefined>(undefined)
   // A plugin this package cannot import (ui-model-selection) says this session cannot
   // send; its reason is already localized by whoever raised it.
   const composerBlock = useComposerBlock(block => block)
@@ -184,38 +214,71 @@ export function ConversationContent({
           ? undefined
           : workspaceLabel(cwd)))
 
-  const heroWorkspaceRow = (
-    <div className={css.heroWorkspaceRow}>
-      <WorkspaceChip
-        buttonRef={pickerAnchor}
-        label={chipTitle}
-        menuOpen={pickerOpen}
-        onClick={() => { setPickerOpen(open => !open) }}
-        t={t}
-      />
-      {renderSlot('conversation.hero.workspace', {
-        open: pickerOpen,
-        anchorRef: pickerAnchor,
-        selectedId: pendingWorkspaceId ?? sessionWorkspace?.workspaceId,
-        onPick: (workspaceId) => {
-          setPickerOpen(false)
-          setPendingWorkspaceId(workspaceId)
-          void selectWorkspace(workspaceId).catch(() => {
-            setPendingWorkspaceId(current => current === workspaceId ? undefined : current)
-          })
-        },
-        onClose: () => { setPickerOpen(false) },
-      })}
-      {renderSlot('conversation.hero.agentPreset', {})}
-    </div>
-  )
+  // Without a directory picker the composer is not a workspace menu, so an
+  // empty Conversation must attach an existing Workspace instead of staying
+  // disabled. Official compositions keep the picker and do not auto-connect.
+  useEffect(() => {
+    if (canAddWorkspace) {
+      connectingWorkspace.current = undefined
+      return
+    }
+    if (workspaces.phase !== 'ready' || workspaces.items.length === 0) return
+    const needsWorkspace = sessionId === undefined || (hero && chipTitle === undefined)
+    if (!needsWorkspace) {
+      connectingWorkspace.current = undefined
+      return
+    }
+    const target = preferredWorkspaceId(workspaces.items, sessionById)
+    if (target === undefined || connectingWorkspace.current === target) return
+    connectingWorkspace.current = target
+    void selectWorkspace(target).catch(() => {
+      if (connectingWorkspace.current === target) connectingWorkspace.current = undefined
+    })
+  }, [
+    canAddWorkspace, sessionId, hero, chipTitle, workspaces.phase, workspaces.items,
+    sessionById, selectWorkspace,
+  ])
+
+  // The chip, picker, and agent-preset hole exist only while a directory-flow
+  // occupant can add a folder. An empty hole never asks the user to pick one.
+  const showHeroWorkspace = canAddWorkspace
+  const heroWorkspaceRow = showHeroWorkspace
+    ? (
+      <div className={css.heroWorkspaceRow}>
+        <WorkspaceChip
+          buttonRef={pickerAnchor}
+          label={chipTitle}
+          menuOpen={pickerOpen}
+          onClick={() => { setPickerOpen(open => !open) }}
+          t={t}
+        />
+        {renderSlot('conversation.hero.workspace', {
+          open: pickerOpen,
+          anchorRef: pickerAnchor,
+          selectedId: pendingWorkspaceId ?? sessionWorkspace?.workspaceId,
+          onPick: (workspaceId) => {
+            setPickerOpen(false)
+            setPendingWorkspaceId(workspaceId)
+            void selectWorkspace(workspaceId).catch(() => {
+              setPendingWorkspaceId(current => current === workspaceId ? undefined : current)
+            })
+          },
+          onClose: () => { setPickerOpen(false) },
+        })}
+        {renderSlot('conversation.hero.agentPreset', {})}
+      </div>
+    )
+    : null
 
   // The placeholder chip ("Choose workspace") and the Workspace-trigger input travel
-  // together: no workspace picked yet (cold start, no session at all), or a
-  // blank session whose workspace vanished (deleted from the sidebar). The
-  // bar is ONE session-maybe slot rendered unconditionally — inert is a prop,
-  // not a different tree, so the textarea DOM survives the transition.
+  // together while a directory-flow occupant can pick a folder: no workspace
+  // picked yet (cold start, no session at all), or a blank session whose
+  // workspace vanished. Without that occupant the composer stays disabled only
+  // until an existing Workspace is attached. The bar is ONE session-maybe slot
+  // rendered unconditionally — inert is a prop, not a different tree, so the
+  // textarea DOM survives the transition.
   const inert = sessionId === undefined || (hero && chipTitle === undefined)
+  const pickWorkspace = canAddWorkspace && inert
   // A raised block is the same inert posture with the blocker's own reason:
   // one disabled textarea, never a second tree. The no-workspace state wins
   // when both hold — picking a workspace is the earlier prerequisite.
@@ -223,12 +286,14 @@ export function ConversationContent({
   const inputBar = renderSlot('conversation.composer.bar', {
     variant: hero ? 'hero' : 'composer',
     ...(inert
-      ? {
-        disabled: true,
-        placeholder: t('placeholder.workspace'),
-        workspacePickerOpen: pickerOpen,
-        onRequestWorkspace: () => { setPickerOpen(true) },
-      }
+      ? pickWorkspace
+        ? {
+          disabled: true,
+          placeholder: t('placeholder.workspace'),
+          workspacePickerOpen: pickerOpen,
+          onRequestWorkspace: () => { setPickerOpen(true) },
+        }
+        : { disabled: true, placeholder: t('placeholder.starting') }
       : blocked
         // `blocked`, not `disabled`: the bar refuses input either way, but a
         // block keeps the model seat live because choosing a model is how the

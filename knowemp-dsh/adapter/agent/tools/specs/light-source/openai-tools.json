@@ -1,0 +1,446 @@
+{
+  "version": "1.0",
+  "status": "draft",
+  "note": "参数以同目录 *.contract.ts 为准。运行时请用 index.ts 的 toLightSourceOpenAiTools() 生成，避免和契约漂移。本文件便于复制到其它 LLM。",
+  "openai_tools": [
+    {
+      "type": "function",
+      "function": {
+        "name": "get_light_source_filters",
+        "description": "获取 TDS 光学光源库的筛选项、取值范围和结构化厂商政策 vendorPolicy。在 search_light_sources 之前调用，用返回的 value / brands[].supplier 填供应商/光色/功率区间。不要把自然语言整句当筛选值。\n\nReturns: { vendorPolicy, vendorGuide, brandAliases, colors, ranges, massProduction, luminousAngles, hosts, suppliers }",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "includeVendorGuide": {
+              "type": "boolean",
+              "default": true,
+              "description": "是否返回侧栏厂商推荐说明，默认 true"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "search_light_sources",
+        "description": "按关键词和结构化条件检索 TDS 光学光源库。keyword 只传短词（型号片段、供应商、光色、物料号），禁止传整句。光色/供应商取值优先来自 get_light_source_filters。查某主机厂推荐光源时填 recommendHost + lampType。\n\nReturns: { totals, page, pageSize, columns[], list[], appliedRecommend? }。columns 来自 TDS field 字典；行字段 key 与 columns[].key 一致（如 PRODUCTMODEL）。",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "keyword": {
+              "type": "string",
+              "description": "对应 TDS target。模糊匹配产品型号、品名、物料编码。短词有效，整句常返回空。"
+            },
+            "colors": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "产品光色，如 [\"red\",\"PC Amber\"]。取值用 filters 返回的 value。"
+            },
+            "suppliers": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "供应商，如 [\"OSRAM\",\"晶能\"]"
+            },
+            "massProduction": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "是否已量产，取值用 filters.massProduction"
+            },
+            "luminousAngles": {
+              "type": "array",
+              "items": { "type": "number" },
+              "description": "发光角度精确值列表"
+            },
+            "models": {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "按产品型号精确匹配。一般由推荐逻辑使用。"
+            },
+            "consumePowerW": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "消耗功率 POWERTJ25 (W)",
+              "properties": {
+                "min": { "type": "number", "description": "下限，含" },
+                "max": { "type": "number", "description": "上限，含" }
+              }
+            },
+            "productPowerW": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "产品功率 PRODUCTPOWER (W)",
+              "properties": {
+                "min": { "type": "number", "description": "下限，含" },
+                "max": { "type": "number", "description": "上限，含" }
+              }
+            },
+            "fluxMaxLm": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "最大光通量冷流明",
+              "properties": {
+                "min": { "type": "number" },
+                "max": { "type": "number" }
+              }
+            },
+            "fluxMinLm": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "最小光通量冷流明",
+              "properties": {
+                "min": { "type": "number" },
+                "max": { "type": "number" }
+              }
+            },
+            "fluxTypicalLm": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "常用光通量热流明",
+              "properties": {
+                "min": { "type": "number" },
+                "max": { "type": "number" }
+              }
+            },
+            "lengthMm": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "长度 mm",
+              "properties": {
+                "min": { "type": "number" },
+                "max": { "type": "number" }
+              }
+            },
+            "widthMm": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "宽度 mm",
+              "properties": {
+                "min": { "type": "number" },
+                "max": { "type": "number" }
+              }
+            },
+            "heightMm": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "高度 mm",
+              "properties": {
+                "min": { "type": "number" },
+                "max": { "type": "number" }
+              }
+            },
+            "maxTjC": {
+              "type": "object",
+              "additionalProperties": false,
+              "description": "Max Tj (°C)",
+              "properties": {
+                "min": { "type": "number" },
+                "max": { "type": "number" }
+              }
+            },
+            "recommendHost": {
+              "type": "string",
+              "description": "主机厂名称。填写后按该主机厂推荐品牌/型号过滤。"
+            },
+            "lampType": {
+              "type": "string",
+              "enum": ["hl", "sl"],
+              "description": "与 recommendHost 一起用。hl=前灯，sl=信号灯。不传则合并两者。"
+            },
+            "market": {
+              "type": "string",
+              "enum": ["out", "in"],
+              "description": "与 recommendHost 一起用。out=出口，in=国内。不传则合并两者。"
+            },
+            "sort": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "enum": [
+                    "seriesName",
+                    "productModel",
+                    "recommendLevel",
+                    "costFactor",
+                    "forwardCurrentMa",
+                    "productPowerW",
+                    "lightColor",
+                    "lengthMm",
+                    "widthMm",
+                    "heightMm",
+                    "luminousMode",
+                    "ledBrand",
+                    "supplier",
+                    "consumePowerW",
+                    "luminousAngle",
+                    "fluxTypicalLm"
+                  ]
+                },
+                "order": { "type": "string", "enum": ["asc", "desc"] },
+                "nulls": { "type": "string", "enum": ["first", "last"] }
+              }
+            },
+            "page": {
+              "type": "integer",
+              "minimum": 1,
+              "default": 1,
+              "description": "页码从 1 开始。Adapter 转 page_token=(page-1)*pageSize"
+            },
+            "pageSize": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 5
+            },
+            "includeP2pSiblings": {
+              "type": "boolean",
+              "default": false,
+              "description": "true 时插入同类 Pin-to-Pin 行。查替代件请用 get_light_source_p2p。"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_light_source_p2p",
+        "description": "按 PIN-TO-PIN 编码查询封装兼容/近似光源。pinToPin 必须来自 search_light_sources 返回的 xy2_PinToPin。\n\nReturns: { columns[], list[], colors[] }。list[].p2pMatch：1=完全相同封装，2=近封装。",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["pinToPin"],
+          "properties": {
+            "pinToPin": {
+              "type": "string",
+              "description": "来自行数据 pinToPin 的 TDS xy2_PinToPin 编码"
+            },
+            "lightColor": {
+              "type": "string",
+              "description": "可选，按产品光色再过滤"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_light_source_application_cases",
+        "description": "按光源型号查询应用项目实例（落地车型/项目、光通量、实车图）。model 用 search_light_sources 返回的 productModel。\n\nReturns: { list[] }，含 hostManufacturer、projectName、projectCode、lightSourceModel、carPics[]。",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["model"],
+          "properties": {
+            "model": {
+              "type": "string",
+              "description": "光源型号，不要传整句自然语言"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "function",
+      "function": {
+        "name": "get_host_recommend_info",
+        "description": "查询主机厂的前灯/信号灯、出口/国内推荐品牌与额外推荐型号。用户问「某主机厂该用哪些厂的灯」时用本工具；要列出具体物料再调 search_light_sources 并带 recommendHost。\n\nReturns: { hosts[], list[] }。list[].hl/sl.out/in = { brands[], extraModels[{brand,models}] }。",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "host": {
+              "type": "string",
+              "description": "主机厂名称。不传则返回全部。"
+            }
+          }
+        }
+      }
+    }
+  ],
+  "anthropic_tools": [
+    {
+      "name": "get_light_source_filters",
+      "description": "获取 TDS 光学光源库的筛选项、取值范围和侧栏厂商说明。在 search_light_sources 之前调用。",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "includeVendorGuide": {
+            "type": "boolean",
+            "default": true,
+            "description": "是否返回侧栏厂商推荐说明，默认 true"
+          }
+        }
+      }
+    },
+    {
+      "name": "search_light_sources",
+      "description": "按关键词和结构化条件检索 TDS 光学光源库。keyword 只传短词，禁止传整句。",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "keyword": { "type": "string" },
+          "colors": { "type": "array", "items": { "type": "string" } },
+          "suppliers": { "type": "array", "items": { "type": "string" } },
+          "massProduction": { "type": "array", "items": { "type": "string" } },
+          "luminousAngles": { "type": "array", "items": { "type": "number" } },
+          "models": { "type": "array", "items": { "type": "string" } },
+          "consumePowerW": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "min": { "type": "number" },
+              "max": { "type": "number" }
+            }
+          },
+          "productPowerW": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "min": { "type": "number" },
+              "max": { "type": "number" }
+            }
+          },
+          "fluxMaxLm": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "min": { "type": "number" },
+              "max": { "type": "number" }
+            }
+          },
+          "fluxMinLm": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "min": { "type": "number" },
+              "max": { "type": "number" }
+            }
+          },
+          "fluxTypicalLm": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "min": { "type": "number" },
+              "max": { "type": "number" }
+            }
+          },
+          "lengthMm": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "min": { "type": "number" },
+              "max": { "type": "number" }
+            }
+          },
+          "widthMm": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "min": { "type": "number" },
+              "max": { "type": "number" }
+            }
+          },
+          "heightMm": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "min": { "type": "number" },
+              "max": { "type": "number" }
+            }
+          },
+          "maxTjC": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "min": { "type": "number" },
+              "max": { "type": "number" }
+            }
+          },
+          "recommendHost": { "type": "string" },
+          "lampType": { "type": "string", "enum": ["hl", "sl"] },
+          "market": { "type": "string", "enum": ["out", "in"] },
+          "sort": {
+            "type": "object",
+            "additionalProperties": false,
+            "properties": {
+              "field": {
+                "type": "string",
+                "enum": [
+                  "seriesName",
+                  "productModel",
+                  "recommendLevel",
+                  "costFactor",
+                  "forwardCurrentMa",
+                  "productPowerW",
+                  "lightColor",
+                  "lengthMm",
+                  "widthMm",
+                  "heightMm",
+                  "luminousMode",
+                  "ledBrand",
+                  "supplier",
+                  "consumePowerW",
+                  "luminousAngle",
+                  "fluxTypicalLm"
+                ]
+              },
+              "order": { "type": "string", "enum": ["asc", "desc"] },
+              "nulls": { "type": "string", "enum": ["first", "last"] }
+            }
+          },
+          "page": { "type": "integer", "minimum": 1, "default": 1 },
+          "pageSize": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 50,
+            "default": 5
+          },
+          "includeP2pSiblings": { "type": "boolean", "default": false }
+        }
+      }
+    },
+    {
+      "name": "get_light_source_p2p",
+      "description": "按 PIN-TO-PIN 编码查询封装兼容/近似光源。pinToPin 必须来自 search_light_sources 返回的 xy2_PinToPin。",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["pinToPin"],
+        "properties": {
+          "pinToPin": { "type": "string" },
+          "lightColor": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "get_light_source_application_cases",
+      "description": "按光源型号查询应用项目实例。model 用 search_light_sources 返回的 productModel。",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["model"],
+        "properties": {
+          "model": { "type": "string" }
+        }
+      }
+    },
+    {
+      "name": "get_host_recommend_info",
+      "description": "查询主机厂前灯/信号灯、出口/国内推荐品牌与额外推荐型号。",
+      "input_schema": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "host": { "type": "string" }
+        }
+      }
+    }
+  ]
+}

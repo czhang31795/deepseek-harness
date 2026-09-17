@@ -469,6 +469,20 @@ describe('UiWorkspaceService', () => {
     expect(b.sessions.create).toHaveBeenCalledWith({ workspaceId: wid('newest') })
   })
 
+  it('connects the first Workspace that appears after an empty ready roster', async () => {
+    const b = bench()
+    b.sessions.create.mockResolvedValue(sid('initial'))
+    b.workspaces.list.set(workspaceState([]))
+    b.sessions.list.set(sessionState())
+    await flush()
+    expect(b.sessions.create).not.toHaveBeenCalled()
+    b.workspaces.list.set(workspaceState([workspace('late')]))
+    await vi.waitFor(() => {
+      expect(b.sessions.open).toHaveBeenCalledWith(sid('initial'))
+    })
+    expect(b.sessions.create).toHaveBeenCalledWith({ workspaceId: wid('late') })
+  })
+
   it('retries failed initial selection and never overwrites a later selection', async () => {
     const warning = vi.spyOn(console, 'warn').mockImplementation(() => undefined)
     const b = bench()

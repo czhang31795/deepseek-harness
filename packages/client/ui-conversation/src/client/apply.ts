@@ -178,6 +178,16 @@ export function apply(ctx: Context, config: Config = Config({})): void {
     }
   }
   const conversationViews = createSnapshotStore<readonly ViewTab[]>(viewTabs())
+  const canAddWorkspace = createSnapshotStore(false)
+  const syncCanAddWorkspace = (): void => {
+    const next = slots.entriesOfSlot('conversation.hero.workspace.directoryFlow').length > 0
+    if (canAddWorkspace.getSnapshot() !== next) canAddWorkspace.set(next)
+  }
+  ctx.effect(
+    () => slots.subscribe('conversation.hero.workspace.directoryFlow', syncCanAddWorkspace),
+    'ui-conversation: directory-flow occupancy',
+  )
+  syncCanAddWorkspace()
   const refreshViews = (): void => {
     const current = conversationViews.getSnapshot()
     const next = viewTabs()
@@ -255,6 +265,7 @@ export function apply(ctx: Context, config: Config = Config({})): void {
     inject: (sessionId: SessionId | undefined): ConversationInjected => ({
       hooks: {
         composerBlock: sessionId === undefined ? ABSENT_BLOCK : composerBlocks.storeFor(sessionId),
+        canAddWorkspace,
       },
       selectWorkspace: workspaceId => workspaceNavigation.openWorkspace(workspaceId, (nextId) => {
         if (sessionId !== undefined && nextId !== sessionId) {

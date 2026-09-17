@@ -31,7 +31,7 @@ import type { SessionId } from '@deepseek-ai/dsh-session/types'
 import type {} from './contract/slots.ts'
 import { GuideBody, type GuideInjected } from './tabs/guide/GuideBody.tsx'
 import { GuideTitle } from './tabs/guide/GuideTitle.tsx'
-import { ExpandButton } from './shell/ExpandButton.tsx'
+import { ExpandButton, type ExpandButtonInjected } from './shell/ExpandButton.tsx'
 import { RightbarSeat, type SidebarRightInjected } from './shell/SidebarRight.tsx'
 import { RightbarRoot } from './shell/RightbarRoot.tsx'
 import { createSidebarRightController, type SidebarRightController } from './service.ts'
@@ -45,7 +45,7 @@ import { defaultSeed } from './contract/seed.ts'
 
 export type { RightbarSeatProps, SidebarRightInjected, SidebarRightPresentation } from './shell/SidebarRight.tsx'
 export type { GuideBodyProps, GuideInjected } from './tabs/guide/GuideBody.tsx'
-export type { ExpandButtonProps } from './shell/ExpandButton.tsx'
+export type { ExpandButtonInjected, ExpandButtonProps } from './shell/ExpandButton.tsx'
 export type { SidebarRightState, SurfaceState } from './stores.ts'
 export type {
   ISidebarRight, SidebarRightBinding, SidebarRightOpenResourceOptions, SidebarRightOpenTabOptions,
@@ -179,6 +179,9 @@ export function apply(ctx: ClientContext): void {
       name: 'conversation.session.header.corner',
       locale: NS,
       store,
+      inject: (): ExpandButtonInjected => ({
+        hooks: { tabTypes: injected.hooks.tabTypes },
+      }),
     }, ExpandButton))
     // Stage two for the guide: it declares the chain child it hosts and reads
     // the registry's entry boxes, which an ordinary type has no reason to do.

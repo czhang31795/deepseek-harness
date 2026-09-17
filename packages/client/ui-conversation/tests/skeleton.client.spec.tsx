@@ -126,6 +126,8 @@ function mount(
     composerBlock?: { reason: string }
     /** Mutable view ledger used by registration-order regressions. */
     viewTabs?: ViewTab[]
+    /** Whether the directory-flow hole can add a workspace. Defaults to true. */
+    canAddWorkspace?: boolean
   } = {},
 ) {
   const root = sid('root')
@@ -308,6 +310,7 @@ function mount(
     useWorkspaces: bindSnapshotSelector(workspaces),
     useProjection: (() => undefined),
     useComposerBlock: select => select(options.composerBlock),
+    useCanAddWorkspace: select => select(options.canAddWorkspace !== false),
     useInput,
     inputActions,
     renderSlot,
@@ -608,6 +611,21 @@ describe('ConversationRoot resident composer', () => {
     // The agent-preset chip sits in the same row, for the same reason: both
     // choices are only open before the first message.
     expect(b.slotCalls).toContain('conversation.hero.agentPreset')
+  })
+
+  it('hides the hero workspace chip when adding a directory is unavailable', () => {
+    const b = mount(
+      sessionSnapshotOf({ blank: true }),
+      [
+        { ...workspace('one'), sessionIds: [SID] },
+        { ...workspace('second'), title: 'Other' },
+      ],
+      undefined,
+      { canAddWorkspace: false },
+    )
+    expect(b.view.queryByRole('button', { name: '选择工作区' })).toBeNull()
+    expect(b.slotCalls).not.toContain('conversation.hero.workspace')
+    expect(b.slotCalls).not.toContain('conversation.hero.agentPreset')
   })
 
   it('prompt failure renders the promptError strip (ordinary failure, no transaction UI)', () => {

@@ -22,16 +22,18 @@ function hookOf<T>(inst: { subscribe: (fn: () => void) => () => void; getSnapsho
 }
 
 /**
- * Mount the button over a real store instance. It reads four of its props; the
+ * Mount the button over a real store instance. It reads five of its props; the
  * rest of the standard kit is framework-injected and never touched here, so one
  * documented cast keeps the harness to what is actually exercised.
  */
-function mountButton() {
+function mountButton(kinds: readonly string[] = ['files']) {
   const instance = createSidebarRightStore(() => ({ kind: 'guide', title: 'Start' })).create()
+  const entries = kinds.map(kind => ({ kind }))
   const props = {
     sessionId: SESSION,
     useStore: hookOf(instance),
     actions: instance.actions,
+    useTabTypes: <S,>(sel: (value: typeof entries) => S): S => sel(entries),
     // Copy is the dictionary's contract; the key stands in for the translation.
     t: (key: string) => key,
   } as unknown as ExpandButtonProps
@@ -59,6 +61,12 @@ describe('ExpandButton', () => {
     expect(control()).toBeNull()
     act(() => { instance.actions.setExpanded(SESSION, false) })
     expect(control()).not.toBeNull()
+    cleanup()
+  })
+
+  it('renders nothing when the only registered tab type is the guide', () => {
+    const { control } = mountButton(['guide'])
+    expect(control()).toBeNull()
     cleanup()
   })
 })

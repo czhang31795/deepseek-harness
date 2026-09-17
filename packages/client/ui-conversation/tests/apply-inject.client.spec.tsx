@@ -325,6 +325,13 @@ describe('Conversation inject API', () => {
     await b.runtime.dispose()
   })
 
+  it('reports no directory-flow occupancy until a picker occupies the hole', async () => {
+    const b = await bench()
+    onTestFinished(() => b.runtime.dispose())
+    expect(b.residentApi(ROOT).hooks.canAddWorkspace.getSnapshot()).toBe(false)
+    expect(b.residentApi(undefined).hooks.canAddWorkspace.getSnapshot()).toBe(false)
+  })
+
   it('moves a draft only when Workspace navigation changes Session', async () => {
     const b = await bench()
     const resident = b.residentApi(ROOT)
